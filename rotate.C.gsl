@@ -1,0 +1,434 @@
+#include"rotate.h"
+#include"matrix_functions.h"
+#include"printing_functions.h"
+#include<omp.h>
+#include"qmcinfo.h"
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_multimin.h>
+
+double cost(const gsl_vector * x, void *params)
+{
+   QMC_Info * p = (QMC_Info *)params;
+   std::vector<RMatrix> in_one_rdm = p->one_rdm;
+   int nstates=in_one_rdm.size();
+   std::vector<RMatrix> out_one_rdm(nstates);
+   RMatrix unitary;
+   int nsites=12;
+   unitary.resize(nsites,nsites);
+   double alpha0 = gsl_vector_get(x, 0); 
+   double alpha1 = gsl_vector_get(x, 1); 
+   double alpha2 = gsl_vector_get(x, 2); 
+   double alpha3 = gsl_vector_get(x, 3); 
+   double alpha3p = gsl_vector_get(x, 4); 
+   double alpha4 = gsl_vector_get(x, 5); 
+   //cout<<"Setting unitary in cost"<<endl;
+   for (int i=0;i<nsites;i++)
+   {
+	for (int j=0;j<nsites;j++)
+	{
+   		unitary(i,j)=0.0; 
+	}
+   }
+
+   for (int i=0;i<4;i++) unitary(i,i)=sqrt(abs(1.0-(4.0*alpha1*alpha1)-(2.0*alpha2*alpha2)-(alpha4*alpha4)-(2.0*alpha3*alpha3)-(2.0*alpha3p*alpha3p)));
+   //for (int i=4;i<12;i++) unitary(i,i)=sqrt(1.0-(2.0*alpha0*alpha0)-(4.0*alpha3*alpha3));
+   for (int i=4;i<12;i++) unitary(i,i)=sqrt(abs(1.0-(2.0*alpha0*alpha0)));
+
+//===================================================================================
+/* 0     1       2      3      4      5      6      7     8      9      10      11
++0.913 +0.081 +0.006 +0.003 +0.200 +0.199 -0.201 -0.200 -0.028 +0.011 +0.012 -0.032 
++0.006 +0.913 -0.036 +0.088 -0.015 -0.200 +0.197 +0.035 -0.013 +0.015 +0.202 -0.198 
++0.083 +0.018 +0.913 +0.008 -0.200 +0.016 +0.001 +0.199 +0.199 -0.200 +0.055 -0.012 
+-0.006 +0.006 +0.086 +0.913 -0.012 +0.041 -0.006 +0.021 -0.200 +0.198 -0.200 +0.202 
+-0.199 +0.032 +0.198 -0.006 +0.949 +0.071 +0.046 +0.069 +0.070 +0.025 +0.040 +0.055 
+-0.199 +0.197 -0.029 -0.027 -0.112 +0.949 +0.047 -0.045 +0.018 -0.034 +0.008 -0.012 
++0.197 -0.201 -0.002 +0.023 +0.010 +0.031 +0.950 -0.102 -0.027 -0.067 +0.028 +0.007 
++0.198 -0.036 -0.197 -0.032 +0.011 +0.089 +0.050 +0.949 -0.089 +0.033 +0.000 -0.003 
++0.047 -0.018 -0.198 +0.198 -0.018 -0.002 +0.022 +0.040 +0.949 +0.105 -0.069 -0.049 
++0.005 -0.029 +0.198 -0.199 -0.065 +0.029 +0.062 -0.009 -0.025 +0.949 +0.052 -0.095 
+-0.013 -0.199 -0.059 +0.202 -0.026 +0.035 -0.073 -0.008 +0.014 +0.004 +0.950 +0.051 
++0.047 +0.200 -0.013 -0.196 -0.059 -0.035 +0.038 -0.000 +0.083 +0.058 +0.034 +0.949*/ 
+//===================================================================================
+   unitary(0,3)=alpha4;
+   unitary(1,2)=alpha4;
+   unitary(2,1)=alpha4;
+   unitary(3,0)=alpha4;
+
+   unitary(4,0)=-alpha0;
+   unitary(5,0)=-alpha0;
+   unitary(6,0)=+alpha0;
+   unitary(7,0)=+alpha0;
+   
+   unitary(5,1)=+alpha0;
+   unitary(6,1)=-alpha0;
+   unitary(10,1)=-alpha0;
+   unitary(11,1)=+alpha0;
+   
+   unitary(4,2)=+alpha0;
+   unitary(7,2)=-alpha0;
+   unitary(8,2)=-alpha0;
+   unitary(9,2)=+alpha0;
+   
+   unitary(8,3)=+alpha0;
+   unitary(9,3)=-alpha0;
+   unitary(10,3)=+alpha0;
+   unitary(11,3)=-alpha0;
+   
+   unitary(0,4)=+alpha1;
+   unitary(2,4)=-alpha1;
+   
+   unitary(0,5)=+alpha1;
+   unitary(1,5)=-alpha1;
+   
+   unitary(0,6)=-alpha1;
+   unitary(1,6)=+alpha1;
+   
+   unitary(0,7)=-alpha1;
+   unitary(2,7)=+alpha1;
+   
+   unitary(2,8)=+alpha1;
+   unitary(3,8)=-alpha1;
+   
+   unitary(2,9)=-alpha1;
+   unitary(3,9)=+alpha1;
+   
+   unitary(1,10)=+alpha1;
+   unitary(3,10)=-alpha1;
+   
+   unitary(1,11)=-alpha1;
+   unitary(3,11)=+alpha1;
+
+   unitary(1,0)=alpha2;
+   unitary(2,0)=alpha2;
+   
+   unitary(0,1)=alpha2;
+   unitary(3,1)=alpha2;
+   
+   unitary(0,2)=alpha2;
+   unitary(3,2)=alpha2;
+
+   unitary(1,3)=alpha2;
+   unitary(2,3)=alpha2;
+   
+   unitary(0,8)=+alpha3;
+   unitary(0,9)=+alpha3p;
+   unitary(0,10)=+alpha3;
+   unitary(0,11)=+alpha3p;
+  
+   unitary(1,4)=+alpha3;
+   unitary(1,7)=+alpha3p;
+   unitary(1,8)=+alpha3p;
+   unitary(1,9)=+alpha3;
+   
+   unitary(2,5)=+alpha3;
+   unitary(2,6)=+alpha3p;
+   unitary(2,10)=+alpha3p;
+   unitary(2,11)=+alpha3;
+  
+   unitary(3,4)=+alpha3p;
+   unitary(3,5)=+alpha3p;
+   unitary(3,6)=+alpha3;
+   unitary(3,7)=+alpha3;
+   
+   /*unitary(6,7)=+alpha3;
+   unitary(5,7)=+alpha3;
+   unitary(9,7)=+alpha3;
+   unitary(8,7)=+alpha3;
+   
+   unitary(7,8)=+alpha3;
+   unitary(11,8)=+alpha3;
+   unitary(4,8)=+alpha3;
+   unitary(10,8)=+alpha3;
+   
+   unitary(11,9)=+alpha3;
+   unitary(10,9)=+alpha3;
+   unitary(7,9)=+alpha3;
+   unitary(4,9)=+alpha3;
+  
+   unitary(8,10)=+alpha3;
+   unitary(9,10)=+alpha3;
+   unitary(5,10)=+alpha3;
+   unitary(6,10)=+alpha3;
+   
+   unitary(5,11)=+alpha3;
+   unitary(6,11)=+alpha3;
+   unitary(9,11)=+alpha3;
+   unitary(8,11)=+alpha3;*/
+   
+   
+   /*unitary(9,4)=-alpha3;
+   unitary(8,4)=+alpha3;
+   unitary(6,4)=+alpha3;
+   unitary(5,4)=-alpha3;
+   
+   unitary(4,5)=-alpha3;
+   unitary(7,5)=+alpha3;
+   unitary(10,5)=+alpha3;
+   unitary(11,5)=-alpha3;
+  
+   unitary(10,6)=-alpha3;
+   unitary(11,6)=+alpha3;
+   unitary(7,6)=-alpha3;
+   unitary(4,6)=+alpha3;
+   
+   unitary(6,7)=-alpha3;
+   unitary(5,7)=+alpha3;
+   unitary(9,7)=+alpha3;
+   unitary(8,7)=-alpha3;
+   
+   unitary(7,8)=-alpha3;
+   unitary(11,8)=+alpha3;
+   unitary(4,8)=+alpha3;
+   unitary(10,8)=-alpha3;
+   
+   unitary(11,9)=-alpha3;
+   unitary(10,9)=+alpha3;
+   unitary(7,9)=+alpha3;
+   unitary(4,9)=-alpha3;
+  
+   unitary(8,10)=-alpha3;
+   unitary(9,10)=+alpha3;
+   unitary(5,10)=+alpha3;
+   unitary(6,10)=-alpha3;
+   
+   unitary(5,11)=-alpha3;
+   unitary(6,11)=+alpha3;
+   unitary(9,11)=-alpha3;
+   unitary(8,11)=+alpha3;*/
+   
+  
+/*Unitary
++0.913 +0.081 +0.006 +0.003 +0.200 +0.199 -0.201 -0.200 -0.028 +0.011 +0.012 -0.032 
++0.006 +0.913 -0.036 +0.088 -0.015 -0.200 +0.197 +0.035 -0.013 +0.015 +0.202 -0.198 
++0.083 +0.018 +0.913 +0.008 -0.200 +0.016 +0.001 +0.199 +0.199 -0.200 +0.055 -0.012 
+-0.006 +0.006 +0.086 +0.913 -0.012 +0.041 -0.006 +0.021 -0.200 +0.198 -0.200 +0.202 
+-0.199 +0.032 +0.198 -0.006 +0.949 +0.071 +0.046 +0.069 +0.070 +0.025 +0.040 +0.055 
+-0.199 +0.197 -0.029 -0.027 -0.112 +0.949 +0.047 -0.045 +0.018 -0.034 +0.008 -0.012 
++0.197 -0.201 -0.002 +0.023 +0.010 +0.031 +0.950 -0.102 -0.027 -0.067 +0.028 +0.007 
++0.198 -0.036 -0.197 -0.032 +0.011 +0.089 +0.050 +0.949 -0.089 +0.033 +0.000 -0.003 
++0.047 -0.018 -0.198 +0.198 -0.018 -0.002 +0.022 +0.040 +0.949 +0.105 -0.069 -0.049 
++0.005 -0.029 +0.198 -0.199 -0.065 +0.029 +0.062 -0.009 -0.025 +0.949 +0.052 -0.095 
+-0.013 -0.199 -0.059 +0.202 -0.026 +0.035 -0.073 -0.008 +0.014 +0.004 +0.950 +0.051 
++0.047 +0.200 -0.013 -0.196 -0.059 -0.035 +0.038 -0.000 +0.083 +0.058 +0.034 +0.949*/ 
+
+ 
+   for (int state=0;state<nstates;state++) 
+   {
+   	//cout<<"Rotating 1-RDM in cost for state number "<<state<<endl;
+   	rotate_one_rdm(in_one_rdm[state], unitary, out_one_rdm[state]);
+   }
+   double trace=0.0;
+   for (int i=0;i<12;i++) trace=trace+in_one_rdm[0](i,i);
+   trace=trace/4.0;
+   double value=0.0;
+   for (int state=0;state<nstates;state++)
+   {
+	   for (int i=0;i<4;i++) value=value+pow((out_one_rdm[state](i,i)-trace),2.0);
+	   value=value+pow((out_one_rdm[state](0,3)-0.0),2.0);
+	   value=value+pow((out_one_rdm[state](1,2)-0.0),2.0);
+   }
+   
+   RMatrix eye;
+   real_matrix_multiply_abt(unitary,unitary,eye);
+   int eyecheck=4;
+   for (int i=0;i<eyecheck;i++) value=value+pow((eye(i,i)-1.0),2.0);
+   for (int i=0;i<eyecheck;i++) 
+   {
+	for (int j=0;j<eyecheck;j++)
+	{
+		if (i!=j) value=value+pow((eye(i,j)-0.0),2.0);
+	}
+   }
+   /*for (int i=0;i<12;i++) 
+   {
+	for (int j=0;j<eyecheck;j++)
+	{
+		if (i!=j) value=value+pow((eye(i,j)-0.0),2.0);
+	}
+   }*/
+   
+   //if (alpha0<0) value=value+10; 
+   //if (alpha1<0) value=value+10; 
+
+   cout<<"Cost ="<<value<<endl;
+   //if (value<6.0e-4)
+   {
+   	   //cout<<"Cost ="<<value<<endl;
+	   cout<<"Unitary"<<endl;
+	   print_real_mat(unitary);
+	   
+	   cout<<"Eye"<<endl;
+	   print_real_mat(eye);
+	   
+	   for (int state=0;state<nstates;state++) 
+	   {
+		cout<<"Out 1-RDM for state number "<<state<<endl;
+		print_real_mat(out_one_rdm[state]);
+	   }
+   }
+   return value;     
+}
+
+
+/* Working, but too many prints
+double cost(const gsl_vector * x, void *params)
+{
+   QMC_Info * p = (QMC_Info *)params;
+   std::vector<RMatrix> in_one_rdm = p->one_rdm;
+   int nstates=in_one_rdm.size();
+   std::vector<RMatrix> out_one_rdm(nstates);
+   RMatrix unitary;
+   int nsites=12;
+   unitary.resize(nsites,nsites);
+   cout<<"Setting unitary in cost"<<endl;
+   for (int i=0;i<nsites;i++)
+   {
+	for (int j=0;j<nsites;j++)
+	{
+   		unitary(i,j) = gsl_vector_get(x, (i*nsites)+j); 
+	}
+   }
+
+   for (int state=0;state<nstates;state++) 
+   {
+   	cout<<"Rotating 1-RDM in cost for state number "<<state<<endl;
+   	rotate_one_rdm(in_one_rdm[state], unitary, out_one_rdm[state]);
+   }
+   
+   cout<<"Unitary"<<endl;
+   print_real_mat(unitary);
+   
+   for (int state=0;state<nstates;state++) 
+   {
+   	cout<<"Out 1-RDM for state number "<<state<<endl;
+   	print_real_mat(out_one_rdm[state]);
+   }
+   RMatrix eye;
+
+   real_matrix_multiply_abt(unitary,unitary,eye);
+   double trace=0.0;
+   for (int i=0;i<12;i++) trace=trace+in_one_rdm[0](i,i);
+   trace=trace/4.0;
+   double value=0.0;
+   cout<<"Calculating cost"<<endl;
+   // Cost from 1-RDM trace
+   for (int state=0;state<nstates;state++)
+   {
+	   //double sum1=0.0;
+	   //for (int i=0;i<4;i++) sum1=sum1+out_one_rdm[state](i,i);
+	   //value=value+pow((sum1-trace),2.0);
+	   for (int i=0;i<4;i++) value=value+pow((out_one_rdm[state](i,i)-trace),2.0);
+	   for (int i=4;i<11;i++) value=value+pow((out_one_rdm[state](i,i)-out_one_rdm[state](i+1,i+1)),2.0);
+   }
+   // Cost from Unitary
+   for (int i=0;i<12;i++) value=value+pow((eye(i,i)-1.0),2.0);
+   for (int i=0;i<12;i++) 
+   {
+	for (int j=0;j<12;j++) 
+	{
+		  if (i!=j) value=value+pow((eye(i,j)-0.0),2.0);
+	}
+   }
+   cout<<"Cost ="<<value<<endl;
+   return value;     
+}
+Working, but too many prints */
+
+/////////////////////////////////////////////////////////////////////
+void rotate_one_rdm(RMatrix &in_one_rdm,
+		    RMatrix &unitary,
+                    RMatrix &out_one_rdm)
+{
+   int nsites=in_one_rdm.NRows(); 
+   out_one_rdm.resize(nsites,nsites);
+   for (int i=-0;i<nsites*nsites;i++) out_one_rdm[i]=0.0;   
+   RMatrix tmp;
+   real_matrix_multiply(unitary,in_one_rdm,tmp); 
+   real_matrix_multiply_abt(tmp,unitary,out_one_rdm);
+ 
+ //  // Make the out one rdm as close to 0.5 on diagonals 
+ //  for (int i=0;i<nsites;i++)
+ //  {
+ //       for (int k=0;k<nsites;k++)
+ //       {
+ //       	for(int j=0;j<nsites;j++)
+ //       	{
+ //       		for(int m=0;m<nsites;m++)
+ //       		{
+ //       			out_one_rdm(i,k)+=unitary(i,j)*unitary(k,m)*in_one_rdm(j,m);
+
+ //       		}
+ //       	}
+ //       }
+ //  }
+}
+
+
+void optimize_unitary_from_one_rdm(std::vector<RMatrix> &in_one_rdm, RMatrix &unitary, std::vector<RMatrix> &out_one_rdm)  
+{
+        const gsl_multimin_fminimizer_type *T= gsl_multimin_fminimizer_nmsimplex;
+        gsl_multimin_fminimizer           *s=NULL;
+        gsl_vector                        *ss,*x;
+        gsl_multimin_function             minex_func;
+        int                               status;
+        int                               n,nparams;
+        size_t                            iter=0;
+        QMC_Info                          qmc_data;
+        int                               maxiter=500000;
+
+	cout<<"Optimizing unitary...."<<endl;
+        int nstates=in_one_rdm.size();
+        for (int i=0;i<nstates;i++)
+        {
+		cout<<"In 1-RDM"<<endl;
+		print_real_mat(in_one_rdm[i]);
+        }
+	int nsites=in_one_rdm[0].NRows();
+	cout<<"nsites ="<<nsites<<endl;
+        unitary.resize(nsites,nsites);
+	for (int i=0;i<nsites*nsites;i++) unitary[i]=0.0;
+	for (int i=0;i<nsites;i++) unitary(i,i)=1.0;
+      
+        minex_func.f = cost; 
+        nparams=6;
+	n=nparams; 
+	x=gsl_vector_alloc(n);
+	ss=gsl_vector_alloc(n); 
+	gsl_vector_set_all(ss, 0.5);
+        minex_func.n = n; 
+        
+       cout<<" n ="<<n<<endl;       
+       for (int i=0;i<nparams;i++) gsl_vector_set (x, i, 0.0); 
+       
+       qmc_data.one_rdm=in_one_rdm;
+       cout<<"Set QMC data"<<endl; 
+       minex_func.params= &qmc_data;
+       cout<<"Set minex.func"<<endl; 
+       s=gsl_multimin_fminimizer_alloc (T,n);
+       cout<<"Set s"<<endl; 
+       gsl_multimin_fminimizer_set(s,&minex_func,x,ss);
+       cout<<"Set fminimizer"<<endl; 
+       iter=0;
+       double size=10;
+       do
+       {
+
+	      iter++;
+	      if (size<1.0e-4)
+	      {
+	       cout << "START OF ITER:" << iter << endl;
+	       cout << "++++++++++++++++++++" << endl; 
+              }
+	      status = gsl_multimin_fminimizer_iterate (s);
+	      if (status)   /* check if solver is stuck */
+	       break;
+	      size = gsl_multimin_fminimizer_size (s);
+	      if (size<1.0e-4)
+              {
+	      cout<<"Step size in Nelder-Mead = "<<size<<endl;
+	      cout << "++++++++++++++++++++\n\n" << endl; 
+              }
+	      status = gsl_multimin_test_size(size,1.0e-10);
+       }while (status == GSL_CONTINUE && iter < maxiter);
+
+} 

@@ -1,0 +1,11 @@
+#!/bin/bash -l
+# Batch Queue Script
+#SBATCH --time=4:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH -p changlani_q
+
+export OMP_NUM_THREADS=1
+/gpfs/home/hchanglani/Hubbard/ed in_ob_8_nup_6_ndn_0_Udd_10.00 > out_ob_8_nup_6_ndn_0_Udd_10.00
+
